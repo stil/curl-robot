@@ -1,0 +1,11 @@
+{
+    "name": "stil/curl-robot",
+    "require": {
+        "stil/curl-easy": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "cURL\\": "src/"
+        }
+    }
+}
