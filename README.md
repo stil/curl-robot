@@ -1,6 +1,13 @@
 Parallel URL crawling library.
-
-####Example of use
+###Installation with Composer
+```json
+{
+    "require": {
+        "stil/curl-robot": "*"
+    }
+}
+```
+###Example of use
 In this example we will download StackOverflow questions sequentially starting from question with index 100000.
 ```php
 <?php
