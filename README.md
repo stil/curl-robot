@@ -18,9 +18,6 @@ use cURL\Request;
 use cURL\Event;
 use cURL\RequestProviderInterface;
 
-/**
- * Class providing requests to crawler
- */
 class Crawler implements RequestProviderInterface
 {
     /**
@@ -50,21 +47,23 @@ $robot->setQueueSize(5);
 $robot->setMaximumRPM(60);
 
 $queue = $robot->getQueue();
-$queue->getDefaultOptions()
-    ->set(CURLOPT_ENCODING, '') // gzip encoding
-    ->set(CURLOPT_FOLLOWLOCATION, true) // follow redirects
-    ->set(CURLOPT_HTTPHEADER, [
+$queue->getDefaultOptions()->set([
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_ENCODING       => '',
+    CURLOPT_HTTPHEADER     => [
         'User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:31.0) Gecko/20100101 Firefox/31.0',
         'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-    ])
-    ->set(CURLOPT_RETURNTRANSFER, true);
+    ]
+]);
 
-$queue->addListener('complete', function (Event $event) use ($robot, &$count) {
+$queue->addListener('complete', function (Event $event) {
     $response = $event->response;
-    $info = $response->getInfo();
+    $httpCode = $response->getInfo(CURLINFO_HTTP_CODE);
 
-    echo date('[Y-m-d H:i:s]').'[HTTP '.$info['http_code'].'] ';
-    if ($info['http_code'] == 200) {
+    printf('[%s][HTTP %d] ', date('Y-m-d H:i:s'), $httpCode);
+
+    if ($httpCode == 200) {
         $html = $response->getContent();
 
         $dom = new DOMDocument();
