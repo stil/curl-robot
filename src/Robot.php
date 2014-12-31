@@ -3,11 +3,34 @@ namespace cURL;
 
 class Robot implements RobotInterface
 {
+    /**
+     * @var RequestsQueue
+     */
     protected $queue;
+
+    /**
+     * @var int Maximum size of queue
+     */
     protected $queueSize;
+
+    /**
+     * @var int Maximum amount of requests per minute
+     */
     protected $maximumRPM;
-    protected $provider;
+
+    /**
+     * @var RequestProviderInterface
+     */
+    protected $requestProvider;
+
+    /**
+     * @var int Requests count completed from the start
+     */
     protected $requestCount = 0;
+
+    /**
+     * @var float Unix timestamp of queue execution start
+     */
     protected $timeStart = null;
 
     public function __construct()
