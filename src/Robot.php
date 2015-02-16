@@ -33,6 +33,8 @@ class Robot implements RobotInterface
      */
     protected $timeStart = null;
 
+    protected $pauseRequested = false;
+
     public function __construct()
     {
         $this->queue = new RequestsQueue();
@@ -70,7 +72,7 @@ class Robot implements RobotInterface
 
     protected function fillQueue()
     {
-        while ($this->queueNotFull() && $request = $this->requestProvider->nextRequest()) {
+        while (!$this->pauseRequested && $this->queueNotFull() && $request = $this->requestProvider->nextRequest()) {
             $this->queue->attach($request);
         }
     }
@@ -92,5 +94,25 @@ class Robot implements RobotInterface
 
         $this->timeStart = microtime(true);
         $this->queue->send();
+    }
+
+    public function hasPaused()
+    {
+        return $this->pauseRequested && $this->queue->count() == 0;
+    }
+
+    public function isPauseRequested()
+    {
+        return $this->pauseRequested;
+    }
+
+    public function pause()
+    {
+        $this->pauseRequested = true;
+    }
+
+    public function resume()
+    {
+        $this->pauseRequested = false;
     }
 }

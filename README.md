@@ -42,12 +42,13 @@ class Crawler implements RequestProviderInterface
 $robot = new Robot();
 $robot->setRequestProvider(new Crawler());
 // maximum amount of concurrent requests
-$robot->setQueueSize(5);
+$robot->setQueueSize(3);
 // maximum amount of requests per minute (use it to prevent server overloading)
 $robot->setMaximumRPM(60);
 
 $queue = $robot->getQueue();
 $queue->getDefaultOptions()->set([
+    CURLOPT_TIMEOUT        => 5,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_FOLLOWLOCATION => true,
     CURLOPT_ENCODING       => '',
@@ -57,25 +58,41 @@ $queue->getDefaultOptions()->set([
     ]
 ]);
 
-$queue->addListener('complete', function (Event $event) {
+$count = 0;
+$queue->addListener('complete', function (Event $event) use ($robot, &$count) {
     $response = $event->response;
     $httpCode = $response->getInfo(CURLINFO_HTTP_CODE);
 
-    printf('[%s][HTTP %d] ', date('Y-m-d H:i:s'), $httpCode);
-
+    $question = '';
     if ($httpCode == 200) {
+        $count++;
         $html = $response->getContent();
-
         $dom = new DOMDocument();
         @$dom->loadHTML($html);
         $title = $dom->getElementsByTagName('title');
         if ($title->item(0)) {
             // print <title> tag contents
-            echo $title->item(0)->textContent;
+            $question = $title->item(0)->textContent;
         }
     }
 
-    echo "\n";
+    printf(
+        "[OK %d][%s][HTTP %s] %s\n",
+        $count,
+        date('Y-m-d H:i:s'),
+        $httpCode,
+        $question
+    );
+
+    if (!$robot->isPauseRequested() && $count > 0 && $count % 5 == 0) {
+        echo "Pausing crawler... \n";
+        $robot->pause();
+    }
+
+    if ($robot->hasPaused()) {
+        echo "Processing completed requests (adding to database etc.)...\n";
+        $robot->resume();
+    }
 });
 
 $robot->run();
@@ -83,19 +100,25 @@ $robot->run();
 
 Sample result:
 ```
-[2014-08-25 13:56:30][HTTP 200] file format - General Binary Data Viewer for Windows Vista - Stack Overflow
-[2014-08-25 13:56:30][HTTP 200] MVC or event-driven component-oriented web frameworks? - Stack Overflow
-[2014-08-25 13:56:31][HTTP 404]
-[2014-08-25 13:56:32][HTTP 200] osx - Eclipse text comparison order - Stack Overflow
-[2014-08-25 13:56:33][HTTP 200] oop - What is a metaclass in Python? - Stack Overflow
-[2014-08-25 13:56:34][HTTP 200] What's the best API you've ever used? - Stack Overflow
-[2014-08-25 13:56:35][HTTP 200] c# - Logging Application Block - Logging the caller - Stack Overflow
-[2014-08-25 13:56:36][HTTP 200] ide - How many of you prefer full screen? - Stack Overflow
-[2014-08-25 13:56:37][HTTP 200] svn - What Are Some Decent ISPs That Host Subversion - Stack Overflow
-[2014-08-25 13:56:38][HTTP 404]
-[2014-08-25 13:56:39][HTTP 200] What's the best API you've ever used? - Stack Overflow
-[2014-08-25 13:56:40][HTTP 200] svn - How can I create a directory listing of a subversion repository - Stack Overflow
-[2014-08-25 13:56:41][HTTP 200] management - Perks for new programmers - Programmers Stack Exchange
-[2014-08-25 13:56:42][HTTP 200] MVC or event-driven component-oriented web frameworks? - Stack Overflow
+[OK 0][2015-02-16 11:22:42][HTTP 404]
+[OK 1][2015-02-16 11:22:42][HTTP 200] file format - General Binary Data Viewer for Windows Vista - Stack Overflow
+[OK 2][2015-02-16 11:22:43][HTTP 200] MVC or event-driven component-oriented web frameworks? - Stack Overflow
+[OK 3][2015-02-16 11:22:43][HTTP 200] osx - Eclipse text comparison order - Stack Overflow
+[OK 4][2015-02-16 11:22:45][HTTP 200] oop - What is a metaclass in Python? - Stack Overflow
+[OK 5][2015-02-16 11:22:46][HTTP 200] What's the best API you've ever used? - Stack Overflow
+Pausing crawler...
+[OK 6][2015-02-16 11:22:46][HTTP 200] ide - How many of you prefer full screen? - Stack Overflow
+[OK 7][2015-02-16 11:22:48][HTTP 200] c# - Logging Application Block - Logging the caller - Stack Overflow
+Processing completed requests (adding to database etc.)...
+[OK 7][2015-02-16 11:22:49][HTTP 404]
+[OK 8][2015-02-16 11:22:50][HTTP 200] svn - What Are Some Decent ISPs That Host Subversion - Stack Overflow
+[OK 9][2015-02-16 11:22:51][HTTP 200] What's the best API you've ever used? - Stack Overflow
+[OK 10][2015-02-16 11:22:52][HTTP 200] svn - How can I create a directory listing of a subversion repository - Stack Overflow
+Pausing crawler...
+[OK 11][2015-02-16 11:22:53][HTTP 200] management - Perks for new programmers - Programmers Stack Exchange
+[OK 12][2015-02-16 11:22:54][HTTP 200] Should I remove tags which don't seem appropriate? - Meta Stack Exchange
+Processing completed requests (adding to database etc.)...
+[OK 12][2015-02-16 11:22:55][HTTP 404]
+[OK 13][2015-02-16 11:22:56][HTTP 200] MVC or event-driven component-oriented web frameworks? - Stack Overflow
 ...
 ```

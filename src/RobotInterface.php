@@ -38,4 +38,28 @@ interface RobotInterface
      * @return void
      */
     public function run();
+
+    /**
+     * Requests to stop adding new requests
+     * @return void
+     */
+    public function pause();
+
+    /**
+     * Returns TRUE if pause has been requested, FALSE otherwise
+     * @return bool
+     */
+    public function isPauseRequested();
+
+    /**
+     * Returns TRUE if pause has been requested and all remaining requests are complete
+     * @return bool
+     */
+    public function hasPaused();
+
+    /**
+     * Resumes adding new requests to queue
+     * @return void
+     */
+    public function resume();
 }
