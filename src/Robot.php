@@ -24,9 +24,14 @@ class Robot implements RobotInterface
     protected $requestProvider;
 
     /**
-     * @var int Requests count completed from the start
+     * @var double[] Timestamps of consecutive requests
      */
-    protected $requestCount = 0;
+    protected $requestTimestamps = [];
+
+    /**
+     * @var int How many last requests will be used to calculate RPM
+     */
+    protected $speedMeterFrame = 16;
 
     /**
      * @var float Unix timestamp of queue execution start
@@ -60,6 +65,22 @@ class Robot implements RobotInterface
         $this->maximumRPM = $rpm;
     }
 
+    /**
+     * @return int
+     */
+    public function getSpeedMeterFrame()
+    {
+        return $this->speedMeterFrame;
+    }
+
+    /**
+     * @param int $speedMeterFrame
+     */
+    public function setSpeedMeterFrame($speedMeterFrame)
+    {
+        $this->speedMeterFrame = $speedMeterFrame;
+    }
+
     protected function queueNotFull()
     {
         return $this->queue->count() < $this->queueSize;
@@ -67,7 +88,11 @@ class Robot implements RobotInterface
 
     public function getCurrentRPM()
     {
-        return 60 * $this->requestCount / (microtime(true) - $this->timeStart);
+        if (empty($this->requestTimestamps)) {
+            return null;
+        }
+
+        return 60 * count($this->requestTimestamps) / (microtime(true) - $this->requestTimestamps[0]);
     }
 
     protected function fillQueue()
@@ -82,7 +107,10 @@ class Robot implements RobotInterface
         $this->fillQueue();
 
         $this->queue->addListener('complete', function () {
-            $this->requestCount++;
+            $this->requestTimestamps[] = microtime(true);
+            if (count($this->requestTimestamps) > $this->speedMeterFrame) {
+                array_shift($this->requestTimestamps);
+            }
         }, 1000); // before default listener
 
         $this->queue->addListener('complete', function () {
