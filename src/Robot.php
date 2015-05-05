@@ -95,6 +95,20 @@ class Robot implements RobotInterface
         return 60 * count($this->requestTimestamps) / (microtime(true) - $this->requestTimestamps[0]);
     }
 
+    /**
+     * Pauses execution to make RPM lower than maximum RPM
+     */
+    public function regulateRPM()
+    {
+        if ($this->getCurrentRPM() > $this->maximumRPM) {
+            $sleep = (60 * count($this->requestTimestamps) / $this->maximumRPM) + $this->requestTimestamps[0] - microtime(true);
+            $sleep *= 1000000;
+            if ($sleep > 0) {
+                usleep($sleep);
+            }
+        }
+    }
+
     protected function fillQueue()
     {
         while (!$this->pauseRequested && $this->queueNotFull() && $request = $this->requestProvider->nextRequest()) {
@@ -115,9 +129,7 @@ class Robot implements RobotInterface
 
         $this->queue->addListener('complete', function () {
             $this->fillQueue();
-            while ($this->getCurrentRPM() > $this->maximumRPM) {
-                usleep(500); // slow down, when RPM is too high
-            }
+            $this->regulateRPM();
         }, -1000); // after default listener
 
         $this->timeStart = microtime(true);
