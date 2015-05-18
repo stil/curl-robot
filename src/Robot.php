@@ -1,12 +1,14 @@
 <?php
-namespace cURL;
+namespace cURL\Robot;
 
-class Robot implements RobotInterface
+use Symfony\Component\EventDispatcher\EventDispatcher;
+
+class Robot extends EventDispatcher implements RobotInterface
 {
     /**
-     * @var RequestsQueue
+     * @var int|string
      */
-    protected $queue;
+    protected $label;
 
     /**
      * @var int Maximum size of queue
@@ -19,9 +21,9 @@ class Robot implements RobotInterface
     protected $maximumRPM;
 
     /**
-     * @var RequestProviderInterface
+     * @var int Amount of requests currently processed in queue
      */
-    protected $requestProvider;
+    protected $attachedRequests = 0;
 
     /**
      * @var double[] Timestamps of consecutive requests
@@ -34,32 +36,53 @@ class Robot implements RobotInterface
     protected $speedMeterFrame = 16;
 
     /**
-     * @var float Unix timestamp of queue execution start
+     * @var int Current size of $requestsTimestamps array
      */
-    protected $timeStart = null;
+    protected $currentSpeedFrame = 0;
 
-    protected $pauseRequested = false;
-
-    public function __construct()
+    /**
+     * @param int|string $label Label of this Robot instance. May be used for debugging.
+     */
+    public function __construct($label = null)
     {
-        $this->queue = new RequestsQueue();
+        $this->label = $label;
     }
 
-    public function getQueue()
+    /**
+     * @return int|string
+     */
+    public function getLabel()
     {
-        return $this->queue;
+        return $this->label;
     }
 
-    public function setRequestProvider(RequestProviderInterface $provider)
+    /**
+     * @return int
+     */
+    public function getQueueSize()
     {
-        $this->requestProvider = $provider;
+        return $this->queueSize;
     }
 
-    public function setQueueSize($size)
+    /**
+     * @param int $queueSize
+     */
+    public function setQueueSize($queueSize)
     {
-        $this->queueSize = $size;
+        $this->queueSize = $queueSize;
     }
 
+    /**
+     * @return int
+     */
+    public function getMaximumRPM()
+    {
+        return $this->maximumRPM;
+    }
+
+    /**
+     * @param $rpm
+     */
     public function setMaximumRPM($rpm)
     {
         $this->maximumRPM = $rpm;
@@ -81,78 +104,55 @@ class Robot implements RobotInterface
         $this->speedMeterFrame = $speedMeterFrame;
     }
 
-    protected function queueNotFull()
+    /**
+     * @return bool
+     */
+    public function queueNotFull()
     {
-        return $this->queue->count() < $this->queueSize;
+        return $this->attachedRequests < $this->queueSize;
     }
 
+    /**
+     * @return float|null
+     */
     public function getCurrentRPM()
     {
         if (empty($this->requestTimestamps)) {
             return null;
         }
 
-        return 60 * count($this->requestTimestamps) / (microtime(true) - $this->requestTimestamps[0]);
+        return 60 * $this->currentSpeedFrame / (microtime(true) - $this->requestTimestamps[0]);
     }
 
     /**
-     * Pauses execution to make RPM lower than maximum RPM
+     * @return bool
      */
-    public function regulateRPM()
+    public function speedExceeded()
     {
-        if ($this->getCurrentRPM() > $this->maximumRPM) {
-            $sleep = (60 * count($this->requestTimestamps) / $this->maximumRPM) + $this->requestTimestamps[0] - microtime(true);
-            $sleep *= 1000000;
-            if ($sleep > 0) {
-                usleep($sleep);
-            }
+        return $this->getCurrentRPM() > $this->maximumRPM;
+    }
+
+    /**
+     * Increases amount of currently processed requests by one
+     */
+    public function attach()
+    {
+        $this->attachedRequests++;
+    }
+
+    /**
+     * Decreases amount of currently processed requests by one and updates speed meter
+     */
+    public function detach()
+    {
+        $this->attachedRequests--;
+
+        if (count($this->requestTimestamps) >= $this->speedMeterFrame) {
+            array_shift($this->requestTimestamps);
+        } else {
+            $this->currentSpeedFrame++;
         }
-    }
 
-    protected function fillQueue()
-    {
-        while (!$this->pauseRequested && $this->queueNotFull() && $request = $this->requestProvider->nextRequest()) {
-            $this->queue->attach($request);
-        }
-    }
-
-    public function run()
-    {
-        $this->fillQueue();
-
-        $this->queue->addListener('complete', function () {
-            $this->requestTimestamps[] = microtime(true);
-            if (count($this->requestTimestamps) > $this->speedMeterFrame) {
-                array_shift($this->requestTimestamps);
-            }
-        }, 1000); // before default listener
-
-        $this->queue->addListener('complete', function () {
-            $this->fillQueue();
-            $this->regulateRPM();
-        }, -1000); // after default listener
-
-        $this->timeStart = microtime(true);
-        $this->queue->send();
-    }
-
-    public function hasPaused()
-    {
-        return $this->pauseRequested && $this->queue->count() == 0;
-    }
-
-    public function isPauseRequested()
-    {
-        return $this->pauseRequested;
-    }
-
-    public function pause()
-    {
-        $this->pauseRequested = true;
-    }
-
-    public function resume()
-    {
-        $this->pauseRequested = false;
+        $this->requestTimestamps[] = microtime(true);
     }
 }
