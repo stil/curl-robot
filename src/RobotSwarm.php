@@ -146,6 +146,10 @@ class RobotSwarm extends EventDispatcher implements RobotSwarmInterface
 
     public function run()
     {
+        if (empty($this->robots)) {
+            throw new \RuntimeException("No robot instances have been added. Use RobotSwarm::add() method.");
+        }
+
         do {
             // Refill only when pause is NOT requested
             if (!$this->pauseRequested) {
@@ -220,10 +224,6 @@ class RobotSwarm extends EventDispatcher implements RobotSwarmInterface
      */
     public function retry(RequestHandler $handler)
     {
-        if ($this->isPauseRequested()) {
-            throw new \RuntimeException("You cannot add requests while queue is paused.");
-        }
-
         $this->pendingRequests->attach($handler);
         $this->requestProviderEmpty = false;
     }
