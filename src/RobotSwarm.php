@@ -176,7 +176,7 @@ class RobotSwarm extends EventDispatcher implements RobotSwarmInterface
      */
     protected function refillRobot(Robot $robot)
     {
-        if ($robot->speedExceeded()) {
+        if ($robot->rateExceeded()) {
             return;
         }
 

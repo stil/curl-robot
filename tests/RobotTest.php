@@ -1,6 +1,7 @@
 <?php
 namespace cURL\Robot\Tests;
 
+use cURL\Robot\RateLimit;
 use cURL\Robot\Robot;
 
 class RobotTest extends \PHPUnit_Framework_TestCase
@@ -14,7 +15,7 @@ class RobotTest extends \PHPUnit_Framework_TestCase
 
     public function testQueueNotFull()
     {
-        $robot = new Robot('test');
+        $robot = new Robot();
         $robot->setQueueSize(3);
 
         $this->assertTrue($robot->queueNotFull());
@@ -32,46 +33,25 @@ class RobotTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($robot->queueNotFull());
     }
 
-    public function testGetCurrentRPM()
+    public function testRateExceeded()
     {
-        $robot = new Robot('test');
+        $robot = new Robot();
+        $robot->addRateLimit(new RateLimit(1, 1));
+        $robot->addRateLimit(new RateLimit(5, 10));
 
-        $this->assertEquals(0, $robot->getCurrentRPM());
-        $robot->attach();
-        $this->assertEquals(0, $robot->getCurrentRPM());
-        $robot->detach();
-        $this->assertGreaterThan(0, $robot->getCurrentRPM());
+        // Add 5 requests one after another every second
+        for ($i = 0; $i < 5; $i++) {
+            $robot->attach();
+            $robot->detach();
+            $this->assertFalse($robot->rateExceeded());
+            sleep(1);
+        }
 
-        $robot = new Robot('test');
-        $robot->setSpeedMeterWindow(1);
-
-        $robot->attach();
-        $robot->detach();
-        $this->assertEquals(60, $robot->getCurrentRPM());
-        sleep(1);
-        $this->assertEquals(0, $robot->getCurrentRPM());
-
+        // Add 6th request
         $robot->attach();
         $robot->detach();
-        $this->assertEquals(60, $robot->getCurrentRPM());
 
-        $robot->attach();
-        $robot->detach();
-        $this->assertEquals(120, $robot->getCurrentRPM());
-    }
-
-    public function testSpeedExceeded()
-    {
-        $robot = new Robot('test');
-        $robot->setMaximumRPM(20);
-        $robot->setSpeedMeterWindow(1);
-        $this->assertFalse($robot->speedExceeded());
-        $robot->attach();
-        $robot->detach();
-        $this->assertTrue($robot->speedExceeded());
-        usleep(500000);
-        $this->assertTrue($robot->speedExceeded());
-        sleep(1);
-        $this->assertFalse($robot->speedExceeded());
+        // Exceeded second rate limit 5 reqs / 10s
+        $this->assertTrue($robot->rateExceeded());
     }
 }

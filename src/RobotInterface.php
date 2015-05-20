@@ -9,15 +9,8 @@ interface RobotInterface
     public function getQueueSize();
     public function setQueueSize($queueSize);
 
-    public function getMaximumRPM();
-    public function setMaximumRPM($rpm);
-
-    public function getSpeedMeterWindow();
-    public function setSpeedMeterWindow($window);
-
     public function queueNotFull();
-    public function getCurrentRPM();
-    public function speedExceeded();
+    public function rateExceeded();
 
     public function attach();
     public function detach();

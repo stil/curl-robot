@@ -16,9 +16,9 @@ class Robot extends EventDispatcher implements RobotInterface
     protected $queueSize;
 
     /**
-     * @var int Maximum amount of requests per minute
+     * @var int
      */
-    protected $maximumRPM;
+    protected $totalCompletedRequests = 0;
 
     /**
      * @var int Amount of requests currently processed in queue
@@ -26,14 +26,9 @@ class Robot extends EventDispatcher implements RobotInterface
     protected $attachedRequests = 0;
 
     /**
-     * @var double[] Timestamps of consecutive requests
+     * @var RateLimit[]
      */
-    protected $requestTimestamps = [];
-
-    /**
-     * @var int A time interval (in seconds) which is used to calculate current RPM
-     */
-    protected $speedMeterWindow = 10;
+    protected $rateLimits = [];
 
     /**
      * @param int|string $label Label of this Robot instance. May be used for debugging.
@@ -70,33 +65,17 @@ class Robot extends EventDispatcher implements RobotInterface
     /**
      * @return int
      */
-    public function getMaximumRPM()
+    public function getTotalCompletedRequests()
     {
-        return $this->maximumRPM;
+        return $this->totalCompletedRequests;
     }
 
     /**
-     * @param $rpm
+     * @param RateLimit $limit
      */
-    public function setMaximumRPM($rpm)
+    public function addRateLimit(RateLimit $limit)
     {
-        $this->maximumRPM = $rpm;
-    }
-
-    /**
-     * @return int
-     */
-    public function getSpeedMeterWindow()
-    {
-        return $this->speedMeterWindow;
-    }
-
-    /**
-     * @param int $speedMeterWindow
-     */
-    public function setSpeedMeterWindow($speedMeterWindow)
-    {
-        $this->speedMeterWindow = $speedMeterWindow;
+        $this->rateLimits[] = $limit;
     }
 
     /**
@@ -108,20 +87,16 @@ class Robot extends EventDispatcher implements RobotInterface
     }
 
     /**
-     * @return float
-     */
-    public function getCurrentRPM()
-    {
-        $this->timestampsCleanup();
-        return 60 * count($this->requestTimestamps) / $this->speedMeterWindow;
-    }
-
-    /**
      * @return bool
      */
-    public function speedExceeded()
+    public function rateExceeded()
     {
-        return $this->getCurrentRPM() > $this->maximumRPM;
+        foreach ($this->rateLimits as $limit) {
+            if ($limit->exceeded()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -138,28 +113,11 @@ class Robot extends EventDispatcher implements RobotInterface
     public function detach()
     {
         $this->attachedRequests--;
-        $this->requestTimestamps[] = microtime(true);
-    }
+        $this->totalCompletedRequests++;
 
-    /**
-     * Removes timestamps older than speed meter window
-     */
-    protected function timestampsCleanup()
-    {
-        $windowStart = microtime(true) - $this->speedMeterWindow;
-
-        $sliceIndex = false;
-        foreach ($this->requestTimestamps as $k => $v) {
-            if ($v >= $windowStart) {
-                $sliceIndex = $k;
-                break;
-            }
-        }
-
-        if ($sliceIndex === false) {
-            $this->requestTimestamps = [];
-        } else if ($sliceIndex > 0) {
-            $this->requestTimestamps = array_slice($this->requestTimestamps, $sliceIndex);
+        $now = microtime(true);
+        foreach ($this->rateLimits as $limit) {
+            $limit->update($now);
         }
     }
 }
