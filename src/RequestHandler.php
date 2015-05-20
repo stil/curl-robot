@@ -11,11 +11,6 @@ class RequestHandler
     protected $attempts = 1;
 
     /**
-     * @var Robot
-     */
-    protected $robot;
-
-    /**
      * @var Request
      */
     protected $request;
