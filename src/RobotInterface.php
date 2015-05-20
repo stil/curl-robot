@@ -12,8 +12,8 @@ interface RobotInterface
     public function getMaximumRPM();
     public function setMaximumRPM($rpm);
 
-    public function getSpeedMeterFrame();
-    public function setSpeedMeterFrame($frame);
+    public function getSpeedMeterWindow();
+    public function setSpeedMeterWindow($window);
 
     public function queueNotFull();
     public function getCurrentRPM();

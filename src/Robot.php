@@ -31,14 +31,9 @@ class Robot extends EventDispatcher implements RobotInterface
     protected $requestTimestamps = [];
 
     /**
-     * @var int How many last requests will be used to calculate RPM
+     * @var int A time interval (in seconds) which is used to calculate current RPM
      */
-    protected $speedMeterFrame = 16;
-
-    /**
-     * @var int Current size of $requestsTimestamps array
-     */
-    protected $currentSpeedFrame = 0;
+    protected $speedMeterWindow = 10;
 
     /**
      * @param int|string $label Label of this Robot instance. May be used for debugging.
@@ -91,17 +86,17 @@ class Robot extends EventDispatcher implements RobotInterface
     /**
      * @return int
      */
-    public function getSpeedMeterFrame()
+    public function getSpeedMeterWindow()
     {
-        return $this->speedMeterFrame;
+        return $this->speedMeterWindow;
     }
 
     /**
-     * @param int $speedMeterFrame
+     * @param int $speedMeterWindow
      */
-    public function setSpeedMeterFrame($speedMeterFrame)
+    public function setSpeedMeterWindow($speedMeterWindow)
     {
-        $this->speedMeterFrame = $speedMeterFrame;
+        $this->speedMeterWindow = $speedMeterWindow;
     }
 
     /**
@@ -113,15 +108,12 @@ class Robot extends EventDispatcher implements RobotInterface
     }
 
     /**
-     * @return float|null
+     * @return float
      */
     public function getCurrentRPM()
     {
-        if (empty($this->requestTimestamps)) {
-            return null;
-        }
-
-        return 60 * $this->currentSpeedFrame / (microtime(true) - $this->requestTimestamps[0]);
+        $this->timestampsCleanup();
+        return 60 * count($this->requestTimestamps) / $this->speedMeterWindow;
     }
 
     /**
@@ -146,13 +138,28 @@ class Robot extends EventDispatcher implements RobotInterface
     public function detach()
     {
         $this->attachedRequests--;
+        $this->requestTimestamps[] = microtime(true);
+    }
 
-        if (count($this->requestTimestamps) >= $this->speedMeterFrame) {
-            array_shift($this->requestTimestamps);
-        } else {
-            $this->currentSpeedFrame++;
+    /**
+     * Removes timestamps older than speed meter window
+     */
+    protected function timestampsCleanup()
+    {
+        $windowStart = microtime(true) - $this->speedMeterWindow;
+
+        $sliceIndex = false;
+        foreach ($this->requestTimestamps as $k => $v) {
+            if ($v >= $windowStart) {
+                $sliceIndex = $k;
+                break;
+            }
         }
 
-        $this->requestTimestamps[] = microtime(true);
+        if ($sliceIndex === false) {
+            $this->requestTimestamps = [];
+        } else if ($sliceIndex > 0) {
+            $this->requestTimestamps = array_slice($this->requestTimestamps, $sliceIndex);
+        }
     }
 }

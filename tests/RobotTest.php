@@ -36,34 +36,35 @@ class RobotTest extends \PHPUnit_Framework_TestCase
     {
         $robot = new Robot('test');
 
-        $this->assertNull($robot->getCurrentRPM());
+        $this->assertEquals(0, $robot->getCurrentRPM());
         $robot->attach();
-        $this->assertNull($robot->getCurrentRPM());
+        $this->assertEquals(0, $robot->getCurrentRPM());
         $robot->detach();
         $this->assertGreaterThan(0, $robot->getCurrentRPM());
 
         $robot = new Robot('test');
+        $robot->setSpeedMeterWindow(1);
+
         $robot->attach();
         $robot->detach();
-        sleep(2);
-
-        // 1 req / 2s ~ 30 RPM
-        $this->assertLessThan(0.5, abs($robot->getCurrentRPM() - 30));
-        $robot->attach();
-        $robot->detach();
-
-        // 2 reqs / 2s ~ 60 RPM
-        $this->assertLessThan(0.5, abs($robot->getCurrentRPM() - 60));
+        $this->assertEquals(60, $robot->getCurrentRPM());
         sleep(1);
+        $this->assertEquals(0, $robot->getCurrentRPM());
 
-        // 2 reqs / 3s ~ 40 RPM
-        $this->assertLessThan(0.5, abs($robot->getCurrentRPM() - 40));
+        $robot->attach();
+        $robot->detach();
+        $this->assertEquals(60, $robot->getCurrentRPM());
+
+        $robot->attach();
+        $robot->detach();
+        $this->assertEquals(120, $robot->getCurrentRPM());
     }
 
     public function testSpeedExceeded()
     {
         $robot = new Robot('test');
-        $robot->setMaximumRPM(60);
+        $robot->setMaximumRPM(20);
+        $robot->setSpeedMeterWindow(1);
         $this->assertFalse($robot->speedExceeded());
         $robot->attach();
         $robot->detach();
