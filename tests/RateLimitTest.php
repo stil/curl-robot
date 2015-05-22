@@ -17,10 +17,7 @@ class RateLimitTest extends \PHPUnit_Framework_TestCase
         $this->assertFalse($limit->exceeded()); // 1 request
 
         $limit->update(microtime(true));
-        $this->assertFalse($limit->exceeded()); // 2 requests
-
-        $limit->update(microtime(true));
-        $this->assertTrue($limit->exceeded());  // 3 requests
+        $this->assertTrue($limit->exceeded()); // 2 requests
 
         sleep(1);
         $this->assertFalse($limit->exceeded()); // 2 requests

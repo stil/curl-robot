@@ -65,7 +65,7 @@ class RateLimit
      */
     public function exceeded()
     {
-        return $this->timestampsCount() > $this->limit;
+        return $this->timestampsCount() >= $this->limit;
     }
 
     /**
