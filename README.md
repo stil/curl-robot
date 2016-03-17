@@ -41,14 +41,14 @@ $swarm->getDefaultOptions()->set([
 
 $robot1 = new Robot();
 $robot1->setQueueSize(1);
-$robot1->setMaximumRPM(20);
+$robot1->addRateLimit(new RateLimit(20, 60));
 $robot1->addListener('request.attaching', function (RequestAttachingEvent $e) {
     echo "Attaching request from robot1\n";
 });
 
 $robot2 = new Robot();
 $robot2->setQueueSize(3);
-$robot2->setMaximumRPM(120);
+$robot1->addRateLimit(new RateLimit(120, 60));
 $robot2->addListener('request.attaching', function (RequestAttachingEvent $e) {
     // Proxy requests
     $e->request->getOptions()->set(CURLOPT_PROXY, '10.0.0.1:8080');
